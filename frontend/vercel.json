@@ -6,5 +6,11 @@
   "installCommand": "npm install",
   "env": {
     "VITE_API_URL": "https://eventblast.vercel.app"
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
