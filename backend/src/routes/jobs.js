@@ -23,11 +23,11 @@ router.get('/process', async (req, res, next) => {
       return res.status(401).json({ error: 'Unauthorized invocation' });
     }
 
-    // Process a bounded batch of jobs.
-    // Each Google Calendar API call takes ~1-3s.
-    // Vercel Hobby timeout = 10s  → safe batch = 3
-    // Vercel Pro timeout   = 60s  → safe batch = 20
-    const batchSize = parseInt(req.query.limit, 10) || 3;
+    // PERMANENT FIX: batch=1 ensures we never exceed Vercel's 10s timeout.
+    // 1 Google Calendar API call (~2-3s) + MongoDB ops (~1-2s) = ~4-5s total.
+    // Cron runs every minute → 1 email/min = 60/hour (reliable vs fast but broken).
+    // Override via ?limit=N if on Vercel Pro (60s timeout allows up to ~15).
+    const batchSize = parseInt(req.query.limit, 10) || 1;
     
     const processedCount = await processBatch(batchSize);
 
