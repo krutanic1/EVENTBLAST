@@ -97,17 +97,48 @@ export async function createCalendarEvent({ googleAccount, campaign, recipients 
 
     // ── Step 8: Insert Event ─────────────────────────────────
     console.log('[GCal] Step 8: calling calendar.events.insert');
-    const res = await calendar.events.insert(eventParams);
-    console.log('[GCal] Step 8: success, eventId:', res.data.id);
+    try {
+      const res = await calendar.events.insert(eventParams);
+      console.log('[GCal] Step 8: success, eventId:', res.data.id);
+      return {
+        success: true,
+        eventId: res.data.id,
+        htmlLink: res.data.htmlLink,
+      };
+    } catch (insertErr) {
+      // ── 409 Conflict: event already exists ──────────────────
+      // This happens when a previous attempt timed out after Google
+      // created the event but before we received the response.
+      // The email was already sent — treat this as a success.
+      if (insertErr.code === 409) {
+        console.log('[GCal] Step 8: 409 conflict — event already exists, treating as success');
+        // Try to fetch the existing event to get its htmlLink
+        try {
+          const existing = await calendar.events.get({
+            calendarId: googleAccount.calendarId || 'primary',
+            eventId,
+          });
+          return {
+            success: true,
+            eventId: existing.data.id,
+            htmlLink: existing.data.htmlLink,
+          };
+        } catch {
+          // Can't fetch it, but we know it exists — still a success
+          return { success: true, eventId, htmlLink: null };
+        }
+      }
 
-    return {
-      success: true,
-      eventId: res.data.id,
-      htmlLink: res.data.htmlLink,
-    };
+      console.error('[GCal] ERROR:', insertErr.message);
+      console.error('[GCal] STACK:', insertErr.stack);
+      return {
+        success: false,
+        error: insertErr.message || 'Failed to create Google Calendar event',
+        code: insertErr.code,
+      };
+    }
 
   } catch (err) {
-    // Log full stack so we can see the exact line
     console.error('[GCal] ERROR:', err.message);
     console.error('[GCal] STACK:', err.stack);
     return {
