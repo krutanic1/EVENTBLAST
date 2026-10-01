@@ -57,6 +57,11 @@ const campaignSchema = new mongoose.Schema(
       maxlength: [100, 'Timezone string cannot exceed 100 characters'],
     },
 
+    isAllDay: {
+      type: Boolean,
+      default: true,
+    },
+
     // ── Google Calendar account used to send invitations ──
     googleAccountId: {
       type: mongoose.Schema.Types.ObjectId,

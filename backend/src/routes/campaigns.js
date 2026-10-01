@@ -117,6 +117,7 @@ router.post(
     body('startTime').isISO8601().withMessage('Valid ISO start time is required'),
     body('endTime').isISO8601().withMessage('Valid ISO end time is required'),
     body('timezone').trim().notEmpty().withMessage('Timezone is required'),
+    body('isAllDay').optional().isBoolean(),
     body('googleAccountId').isMongoId().withMessage('A valid Google account ID is required'),
     body('recipients').isArray({ min: 1 }).withMessage('At least one recipient is required'),
   ],
@@ -125,7 +126,7 @@ router.post(
     try {
       const {
         title, description, startTime, endTime,
-        timezone, googleAccountId, recipients,
+        timezone, isAllDay, googleAccountId, recipients,
       } = req.body;
 
       // Verify the Google account belongs to this user
@@ -203,15 +204,28 @@ router.post(
         });
       }
 
+      // Auto-link URLs in description
+      let formattedDescription = description?.trim() || '';
+      if (formattedDescription) {
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        formattedDescription = formattedDescription.replace(urlRegex, function(url) {
+          // If it's already inside an href, skip (basic heuristic)
+          return `<a href="${url}">${url}</a>`;
+        });
+        // Replace newlines with <br> for HTML rendering in calendar
+        formattedDescription = formattedDescription.replace(/\n/g, '<br>');
+      }
+
       // ── Create Campaign ──
       const campaign = await Campaign.create({
         userId:          new mongoose.Types.ObjectId(req.userId),
         googleAccountId: new mongoose.Types.ObjectId(googleAccountId),
         title:           title.trim(),
-        description:     description?.trim() || '',
+        description:     formattedDescription,
         startTime:       new Date(startTime),
         endTime:         new Date(endTime),
         timezone,
+        isAllDay:        Boolean(isAllDay),
         status:          'draft',
         totalRecipients: finalRecipients.length,
         successful:      0,

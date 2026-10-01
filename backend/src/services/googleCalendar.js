@@ -64,14 +64,22 @@ export async function createCalendarEvent({ googleAccount, campaign, recipients 
       id: eventId,
       summary: campaign.title,
       description: campaign.description,
-      start: {
-        dateTime: new Date(campaign.startTime).toISOString(),
-        timeZone: campaign.timezone,
-      },
-      end: {
-        dateTime: new Date(campaign.endTime).toISOString(),
-        timeZone: campaign.timezone,
-      },
+      // Google API takes dateTime for specific times, or date for all-day events
+      start: campaign.isAllDay
+        ? { date: new Date(campaign.startTime).toISOString().split('T')[0] }
+        : {
+            dateTime: new Date(campaign.startTime).toISOString(),
+            timeZone: campaign.timezone,
+          },
+      end: campaign.isAllDay
+        ? {
+            // Google Calendar all-day end dates are exclusive, so we add 1 day
+            date: new Date(new Date(campaign.endTime).getTime() + 86400000).toISOString().split('T')[0]
+          }
+        : {
+            dateTime: new Date(campaign.endTime).toISOString(),
+            timeZone: campaign.timezone,
+          },
       attendees: attendees,
       // Default to transparent so the organizer isn't marked as "busy" for thousands of events
       // if they do 1:1 sends.

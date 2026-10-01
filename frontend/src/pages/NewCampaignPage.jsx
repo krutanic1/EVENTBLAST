@@ -328,8 +328,9 @@ export default function NewCampaignPage() {
     title:           '',
     description:     '',
     date:            '',
-    startTime:       '',
-    endTime:         '',
+    isAllDay:        true,
+    startTime:       '09:00', // Default hidden value
+    endTime:         '10:00', // Default hidden value
     timezone:        Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     googleAccountId: '',
   });
@@ -464,15 +465,15 @@ export default function NewCampaignPage() {
     const errs = {};
     if (!form.title.trim())          errs.title  = 'Event title is required';
     if (!form.date)                  errs.date   = 'Date is required';
-    if (!form.startTime)             errs.startTime = 'Start time is required';
-    if (!form.endTime)               errs.endTime   = 'End time is required';
+    if (!form.isAllDay && !form.startTime) errs.startTime = 'Start time is required';
+    if (!form.isAllDay && !form.endTime)   errs.endTime   = 'End time is required';
     if (!form.timezone)              errs.timezone  = 'Timezone is required';
     if (!form.googleAccountId)       errs.googleAccountId = 'Please select a Google account';
     if (!csvFileName)                errs.csv    = 'Please upload a recipient CSV';
     if (finalRecipients.length === 0 && csvFileName)
                                      errs.csv    = 'No valid recipients after filtering';
 
-    if (form.date && form.startTime && form.endTime) {
+    if (!form.isAllDay && form.date && form.startTime && form.endTime) {
       const start = new Date(`${form.date}T${form.startTime}`);
       const end   = new Date(`${form.date}T${form.endTime}`);
       if (end <= start) errs.endTime = 'End time must be after start time';
@@ -499,6 +500,7 @@ export default function NewCampaignPage() {
         description:     form.description.trim(),
         startTime:       startISO,
         endTime:         endISO,
+        isAllDay:        form.isAllDay,
         timezone:        form.timezone,
         googleAccountId: form.googleAccountId,
         recipients:      finalRecipients,
@@ -590,33 +592,47 @@ export default function NewCampaignPage() {
               </div>
             </Field>
 
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Start Time" required error={errors.startTime}>
-                <div className="relative">
-                  <Clock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
-                  <input
-                    id="campaign-start-time"
-                    type="time"
-                    className={`${inputCls(errors.startTime)} pl-9`}
-                    value={form.startTime}
-                    onChange={set('startTime')}
-                  />
-                </div>
-              </Field>
-
-              <Field label="End Time" required error={errors.endTime}>
-                <div className="relative">
-                  <Clock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
-                  <input
-                    id="campaign-end-time"
-                    type="time"
-                    className={`${inputCls(errors.endTime)} pl-9`}
-                    value={form.endTime}
-                    onChange={set('endTime')}
-                  />
-                </div>
-              </Field>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="rounded border-indigo-500/30 bg-surface-700/50 text-indigo-500 focus:ring-indigo-500/20 w-4 h-4"
+                  checked={form.isAllDay}
+                  onChange={(e) => setForm(f => ({ ...f, isAllDay: e.target.checked }))}
+                />
+                All-day event
+              </label>
             </div>
+
+            {!form.isAllDay && (
+              <div className="grid grid-cols-2 gap-4 fade-in">
+                <Field label="Start Time" required error={errors.startTime}>
+                  <div className="relative">
+                    <Clock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                    <input
+                      id="campaign-start-time"
+                      type="time"
+                      className={`${inputCls(errors.startTime)} pl-9`}
+                      value={form.startTime}
+                      onChange={set('startTime')}
+                    />
+                  </div>
+                </Field>
+
+                <Field label="End Time" required error={errors.endTime}>
+                  <div className="relative">
+                    <Clock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                    <input
+                      id="campaign-end-time"
+                      type="time"
+                      className={`${inputCls(errors.endTime)} pl-9`}
+                      value={form.endTime}
+                      onChange={set('endTime')}
+                    />
+                  </div>
+                </Field>
+              </div>
+            )}
 
             <Field label="Timezone" required error={errors.timezone}>
               <div className="relative">
