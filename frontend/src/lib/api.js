@@ -8,7 +8,7 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
-
+//hagkugsklisfgihl.asdfiuDFKJSDBJVBK
 // ─── Request interceptor (add auth headers later) ─────────
 api.interceptors.request.use(
   (config) => config,
