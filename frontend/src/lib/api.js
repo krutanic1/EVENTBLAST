@@ -3,12 +3,12 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL
     ? `${import.meta.env.VITE_API_URL}/api`
-    : '/api',
+    : 'https://eventblast.vercel.app/api',
   timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
-//hagkugsklisfgihl.asdfiuDFKJSDBJVBK
+
 // ─── Request interceptor (add auth headers later) ─────────
 api.interceptors.request.use(
   (config) => config,
