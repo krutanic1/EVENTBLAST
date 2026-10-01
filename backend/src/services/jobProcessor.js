@@ -256,8 +256,6 @@ export async function releaseStaleLocks() {
  * @returns {Promise<number>} Number of jobs processed.
  */
 export async function processBatch(batchSize = 10) {
-  let processedCount = 0;
-  
   // Clean up any old stale locks before starting
   await releaseStaleLocks();
 
@@ -269,19 +267,24 @@ export async function processBatch(batchSize = 10) {
     return 0; // Nothing to do
   }
 
-  for (let i = 0; i < batchSize; i++) {
-    try {
-      const processed = await processNextJob(activeCampaignIds);
-      if (!processed) {
-        break; // Queue empty
-      }
-      processedCount++;
-    } catch (err) {
-      console.error('[ProcessBatch] Unexpected error:', err);
-      // We can optionally break here or continue to next job
-      break; 
-    }
-  }
-  
+  // ── PARALLEL PROCESSING ──────────────────────────────────────────
+  // MongoDB's atomic findOneAndUpdate ensures each parallel call locks
+  // a DIFFERENT job — no duplicates, no race conditions.
+  //
+  // Sequential (old): batchSize=20 × 3s each = 60s total
+  // Parallel   (new): batchSize=20 × 3s simultaneously = 3s total 🚀
+  const workers = Array.from({ length: batchSize }, () =>
+    processNextJob(activeCampaignIds).catch(err => {
+      console.error('[ProcessBatch] Worker error:', err.message);
+      return false;
+    })
+  );
+
+  const results = await Promise.allSettled(workers);
+
+  const processedCount = results.filter(
+    r => r.status === 'fulfilled' && r.value === true
+  ).length;
+
   return processedCount;
 }

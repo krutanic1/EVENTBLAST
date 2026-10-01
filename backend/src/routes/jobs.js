@@ -23,11 +23,11 @@ router.get('/process', async (req, res, next) => {
       return res.status(401).json({ error: 'Unauthorized invocation' });
     }
 
-    // PERMANENT FIX: batch=1 ensures we never exceed Vercel's 10s timeout.
-    // 1 Google Calendar API call (~2-3s) + MongoDB ops (~1-2s) = ~4-5s total.
-    // Cron runs every minute → 1 email/min = 60/hour (reliable vs fast but broken).
-    // Override via ?limit=N if on Vercel Pro (60s timeout allows up to ~15).
-    const batchSize = parseInt(req.query.limit, 10) || 1;
+    // PARALLEL processing: all jobs run simultaneously on Vercel Pro.
+    // 20 parallel Google API calls each take ~3s → total ~3s per cron run.
+    // 20 emails/min × 60 min = 1,200 emails/hour.
+    // Vercel Pro maxDuration=300s gives plenty of headroom.
+    const batchSize = parseInt(req.query.limit, 10) || 20;
     
     const processedCount = await processBatch(batchSize);
 
