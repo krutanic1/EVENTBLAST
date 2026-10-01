@@ -24,8 +24,9 @@ router.get('/process', async (req, res, next) => {
     }
 
     // Process a bounded batch of jobs
-    // Defaulting to 15 to stay within Vercel's serverless timeout (10s-60s)
-    const batchSize = parseInt(req.query.limit, 10) || 15;
+    // Each Google Calendar API call takes ~0.5-1s, so 50 jobs ≈ ~25-50s per invocation
+    // Vercel serverless timeout is 60s (Hobby) or 300s (Pro)
+    const batchSize = parseInt(req.query.limit, 10) || 50;
     
     const processedCount = await processBatch(batchSize);
 

@@ -26,77 +26,90 @@ function generateDeterministicEventId(campaignId, recipientId) {
  * @returns {Promise<{ eventId: string, htmlLink: string }>}
  */
 export async function createCalendarEvent({ googleAccount, campaign, recipients }) {
-  if (!googleAccount.refreshTokenEncrypted) {
-    throw new Error('Google Account is missing a refresh token.');
-  }
-
-  // 1. Decrypt the refresh token
-  const refreshToken = decrypt(googleAccount.refreshTokenEncrypted);
-
-  // 2. Initialise the OAuth2 Client
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET
-  );
-
-  oauth2Client.setCredentials({
-    refresh_token: refreshToken,
-  });
-
-  // 3. Initialise the Calendar API Client
-  const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-
-  // 4. Prepare Event Details
-  const attendees = recipients.map((r) => ({
-    email: r.email,
-    displayName: r.name || undefined,
-  }));
-
-  // Create deterministic ID based on campaign and the primary recipient
-  // (Assuming typical 1:1 send job per recipient, or deterministic for the batch)
-  const primaryRecipientId = recipients.length > 0 ? recipients[0]._id.toString() : 'empty';
-  const eventId = generateDeterministicEventId(campaign._id.toString(), primaryRecipientId);
-
-  const eventParams = {
-    calendarId: googleAccount.calendarId || 'primary',
-    sendUpdates: 'all', // Send email notifications to attendees
-    requestBody: {
-      id: eventId,
-      summary: campaign.title,
-      description: campaign.description,
-      // Google API takes dateTime for specific times, or date for all-day events
-      start: campaign.isAllDay
-        ? { date: new Date(campaign.startTime).toISOString().split('T')[0] }
-        : {
-            dateTime: new Date(campaign.startTime).toISOString(),
-            timeZone: campaign.timezone,
-          },
-      end: campaign.isAllDay
-        ? {
-            // Google Calendar all-day end dates are exclusive, so we add 1 day
-            date: new Date(new Date(campaign.endTime).getTime() + 86400000).toISOString().split('T')[0]
-          }
-        : {
-            dateTime: new Date(campaign.endTime).toISOString(),
-            timeZone: campaign.timezone,
-          },
-      attendees: attendees,
-      transparency: 'transparent',
-      guestsCanSeeOtherGuests: campaign.guestsCanSeeOtherGuests ?? false,
-    },
-  };
-
   try {
-    // 5. Insert Event
+    // ── Step 1: Check refresh token ──────────────────────────
+    console.log('[GCal] Step 1: checking refreshTokenEncrypted');
+    if (!googleAccount.refreshTokenEncrypted) {
+      throw new Error('Google Account is missing a refresh token.');
+    }
+
+    // ── Step 2: Decrypt the refresh token ────────────────────
+    console.log('[GCal] Step 2: decrypting refresh token');
+    const refreshToken = decrypt(googleAccount.refreshTokenEncrypted);
+
+    // ── Step 3: Init OAuth2 client ───────────────────────────
+    console.log('[GCal] Step 3: init oauth2 client');
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET
+    );
+    oauth2Client.setCredentials({ refresh_token: refreshToken });
+
+    // ── Step 4: Init Calendar API ────────────────────────────
+    console.log('[GCal] Step 4: init calendar api');
+    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
+    // ── Step 5: Build attendees list ─────────────────────────
+    console.log('[GCal] Step 5: building attendees, count:', recipients.length);
+    const attendees = recipients.map((r) => ({
+      email: r.email,
+      displayName: r.name || undefined,
+    }));
+
+    // ── Step 6: Generate deterministic event ID ──────────────
+    console.log('[GCal] Step 6: generating event ID');
+    console.log('[GCal]   campaign._id:', campaign._id, 'type:', typeof campaign._id);
+    const primaryRecipient = recipients.length > 0 ? recipients[0] : null;
+    const primaryRecipientId = primaryRecipient
+      ? (primaryRecipient._id ? primaryRecipient._id.toString() : primaryRecipient.email)
+      : 'empty';
+    console.log('[GCal]   primaryRecipientId:', primaryRecipientId);
+    const eventId = generateDeterministicEventId(campaign._id.toString(), primaryRecipientId);
+    console.log('[GCal]   eventId:', eventId);
+
+    // ── Step 7: Build event params ───────────────────────────
+    console.log('[GCal] Step 7: building eventParams');
+    console.log('[GCal]   isAllDay:', campaign.isAllDay, 'startTime:', campaign.startTime, 'endTime:', campaign.endTime);
+    const eventParams = {
+      calendarId: googleAccount.calendarId || 'primary',
+      sendUpdates: 'all',
+      requestBody: {
+        id: eventId,
+        summary: campaign.title,
+        description: campaign.description,
+        start: campaign.isAllDay
+          ? { date: new Date(campaign.startTime).toISOString().split('T')[0] }
+          : {
+              dateTime: new Date(campaign.startTime).toISOString(),
+              timeZone: campaign.timezone,
+            },
+        end: campaign.isAllDay
+          ? { date: new Date(new Date(campaign.endTime).getTime() + 86400000).toISOString().split('T')[0] }
+          : {
+              dateTime: new Date(campaign.endTime).toISOString(),
+              timeZone: campaign.timezone,
+            },
+        attendees,
+        transparency: 'transparent',
+        guestsCanSeeOtherGuests: campaign.guestsCanSeeOtherGuests ?? false,
+      },
+    };
+
+    // ── Step 8: Insert Event ─────────────────────────────────
+    console.log('[GCal] Step 8: calling calendar.events.insert');
     const res = await calendar.events.insert(eventParams);
-    
+    console.log('[GCal] Step 8: success, eventId:', res.data.id);
+
     return {
       success: true,
       eventId: res.data.id,
       htmlLink: res.data.htmlLink,
     };
+
   } catch (err) {
-    // Handle specific Google API errors gracefully if possible
+    // Log full stack so we can see the exact line
+    console.error('[GCal] ERROR:', err.message);
+    console.error('[GCal] STACK:', err.stack);
     return {
       success: false,
       error: err.message || 'Failed to create Google Calendar event',

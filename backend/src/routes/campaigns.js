@@ -120,7 +120,7 @@ router.post(
     body('isAllDay').optional().isBoolean(),
     body('guestsCanSeeOtherGuests').optional().isBoolean(),
     body('googleAccountId').isMongoId().withMessage('A valid Google account ID is required'),
-    body('recipients').isArray({ min: 1 }).withMessage('At least one recipient is required'),
+    body('recipients').isArray({ min: 1, max: 5000 }).withMessage('Recipients must be an array of 1 to 5,000 entries'),
   ],
   validate,
   async (req, res, next) => {

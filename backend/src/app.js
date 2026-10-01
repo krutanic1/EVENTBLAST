@@ -49,7 +49,7 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // ─── Body Parsing / Logging ───────────────────────────────
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 if (process.env.NODE_ENV !== 'test') {
