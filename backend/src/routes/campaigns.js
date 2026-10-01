@@ -576,17 +576,22 @@ router.post(
       const campaign = await Campaign.findOne({ _id: new mongoose.Types.ObjectId(req.params.id), userId: new mongoose.Types.ObjectId(req.userId) });
       if (!campaign) return res.status(404).json({ success: false, message: 'Not found' });
 
-      // Move failed jobs back to pending, reset attempts
-      await SendJob.updateMany(
-        { campaignId: campaign._id, status: 'failed' },
-        { $set: { status: 'pending', attempts: 0, nextAttemptAt: new Date(), lastError: 'Retrying explicitly' } }
-      );
-      await Recipient.updateMany(
-        { campaignId: campaign._id, status: 'failed' },
-        { $set: { status: 'pending', attempts: 0, error: 'Retrying explicitly' } }
-      );
+      // Reset failed, retrying, AND stale processing jobs → pending immediately
+      const [failedResult, retryingResult] = await Promise.all([
+        SendJob.updateMany(
+          { campaignId: campaign._id, status: { $in: ['failed', 'retrying', 'processing'] } },
+          { $set: { status: 'pending', attempts: 0, nextAttemptAt: new Date(), lastError: 'Requeued manually' }, $unset: { lockedAt: '' } }
+        ),
+        Recipient.updateMany(
+          { campaignId: campaign._id, status: { $in: ['failed', 'retrying'] } },
+          { $set: { status: 'pending', attempts: 0, error: 'Requeued manually' } }
+        ),
+      ]);
 
-      res.json({ success: true, message: 'Failed jobs requeued.' });
+      res.json({
+        success: true,
+        message: `Requeued ${failedResult.modifiedCount} jobs. They will be processed on the next cron run.`,
+      });
     } catch (err) { next(err); }
   }
 );

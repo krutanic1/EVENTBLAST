@@ -24,10 +24,10 @@ router.get('/process', async (req, res, next) => {
     }
 
     // Process a bounded batch of jobs.
-    // Each Google Calendar API call takes ~1-2s.
-    // Vercel Hobby timeout = 10s  → safe batch = 5
-    // Vercel Pro timeout   = 60s  → safe batch = 30
-    const batchSize = parseInt(req.query.limit, 10) || 5;
+    // Each Google Calendar API call takes ~1-3s.
+    // Vercel Hobby timeout = 10s  → safe batch = 3
+    // Vercel Pro timeout   = 60s  → safe batch = 20
+    const batchSize = parseInt(req.query.limit, 10) || 3;
     
     const processedCount = await processBatch(batchSize);
 
