@@ -4,7 +4,7 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL
     ? `${import.meta.env.VITE_API_URL}/api`
     : 'https://eventblast.vercel.app/api',
-  timeout: 10000,
+  timeout: 60000,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
