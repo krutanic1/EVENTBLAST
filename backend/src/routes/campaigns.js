@@ -358,13 +358,7 @@ router.get(
         return res.status(404).json({ success: false, message: 'Campaign not found.' });
       }
 
-      // Aggregate SendJob statuses
-      const stats = await SendJob.aggregate([
-        { $match: { campaignId: campaign._id } },
-        { $group: { _id: '$status', count: { $sum: 1 } } }
-      ]);
-
-      const counts = {
+      let counts = {
         total: campaign.totalRecipients,
         pending: 0,
         processing: 0,
@@ -374,11 +368,23 @@ router.get(
         cancelled: 0
       };
 
-      stats.forEach(s => {
-        if (counts[s._id] !== undefined) {
-          counts[s._id] = s.count;
-        }
-      });
+      if (campaign.deliveryMethod === 'bcc') {
+        // BCC campaigns send instantly, they don't have SendJobs
+        counts.sent = campaign.successful || 0;
+        counts.failed = campaign.failed || 0;
+      } else {
+        // Queue campaigns use SendJobs
+        const stats = await SendJob.aggregate([
+          { $match: { campaignId: campaign._id } },
+          { $group: { _id: '$status', count: { $sum: 1 } } }
+        ]);
+
+        stats.forEach(s => {
+          if (counts[s._id] !== undefined) {
+            counts[s._id] = s.count;
+          }
+        });
+      }
 
       res.json({
         success: true,
