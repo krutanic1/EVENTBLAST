@@ -61,7 +61,7 @@ function buildOAuthClient() {
 
 /** Safe redirect to the React frontend with an error message. */
 function redirectError(res, message, frontendUrl) {
-  const base = frontendUrl || process.env.FRONTEND_URL || 'http://localhost:5173';
+  const base = frontendUrl || 'https://eventblast.vercel.app';
   return res.redirect(
     `${base}/dashboard/accounts?tab=google&error=${encodeURIComponent(message)}`
   );
@@ -69,7 +69,7 @@ function redirectError(res, message, frontendUrl) {
 
 /** Safe redirect to the React frontend after a successful connection. */
 function redirectSuccess(res, email, frontendUrl) {
-  const base = frontendUrl || process.env.FRONTEND_URL || 'http://localhost:5173';
+  const base = frontendUrl || 'https://eventblast.vercel.app';
   return res.redirect(
     `${base}/dashboard/accounts?tab=google&connected=1&account=${encodeURIComponent(email)}`
   );
