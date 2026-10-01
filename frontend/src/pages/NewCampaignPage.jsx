@@ -328,7 +328,7 @@ export default function NewCampaignPage() {
     title:           '',
     description:     '',
     date:            '',
-    isAllDay:        true,
+    isAllDay:        true,//fgfdsgdsgdsfsdg
     startTime:       '09:00', // Default hidden value
     endTime:         '10:00', // Default hidden value
     timezone:        Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
