@@ -21,17 +21,23 @@ import User from '../models/User.js';
  */
 export async function resolveUser(req, _res, next) {
   try {
-    const token = req.cookies?.token;
+    let token = req.cookies?.token;
+    let userId = null;
     
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      if (decoded && decoded.id) {
-        req.userId = decoded.id;
-        req.user = await User.findById(decoded.id).lean() ?? null;
-      } else {
-        req.userId = null;
-        req.user = null;
+      userId = decoded?.id;
+    } else {
+      // Fallback to query param or Authorization header
+      userId = req.query.userId;
+      if (!userId && req.headers.authorization?.startsWith('Bearer ')) {
+        userId = req.headers.authorization.split(' ')[1];
       }
+    }
+
+    if (userId) {
+      req.userId = userId;
+      req.user = await User.findById(userId).lean() ?? null;
     } else {
       req.userId = null;
       req.user = null;
