@@ -135,7 +135,7 @@ router.post(
         _id: new mongoose.Types.ObjectId(googleAccountId),
         userId: new mongoose.Types.ObjectId(req.userId),
         status: 'active',
-      }).lean();
+      }).select('+refreshTokenEncrypted').lean();
 
       if (!googleAccount) {
         return res.status(400).json({
@@ -222,6 +222,8 @@ router.post(
         formattedDescription = formattedDescription.replace(/\n/g, '<br>');
       }
 
+      const isBcc = req.body.deliveryMethod === 'bcc';
+
       // ── Create Campaign ──
       const campaign = await Campaign.create({
         userId:          new mongoose.Types.ObjectId(req.userId),
@@ -232,12 +234,48 @@ router.post(
         endTime:         new Date(endTime),
         timezone,
         isAllDay:        Boolean(isAllDay),
-        guestsCanSeeOtherGuests: Boolean(guestsCanSeeOtherGuests),
-        status:          'draft',
+        // If BCC, guests MUST be hidden. Otherwise default to true to avoid the ugly text.
+        guestsCanSeeOtherGuests: isBcc ? false : true,
+        deliveryMethod:  isBcc ? 'bcc' : 'queue',
+        status:          isBcc ? 'sending' : 'draft',
         totalRecipients: finalRecipients.length,
         successful:      0,
         failed:          0,
       });
+
+      if (isBcc) {
+        const { createCalendarEvent } = await import('../services/googleCalendar.js');
+        const result = await createCalendarEvent({
+          googleAccount,
+          campaign,
+          recipients: finalRecipients,
+        });
+
+        if (result.success) {
+          campaign.status = 'sent';
+          campaign.successful = finalRecipients.length;
+          await campaign.save();
+
+          return res.status(201).json({
+            success: true,
+            data: {
+              campaignId: campaign._id,
+              totalRecipients: finalRecipients.length,
+              pendingJobs: 0,
+              invalidRecipients: invalidCount,
+              duplicates: duplicateCount,
+              unsubscribed: unsubscribedCount,
+            }
+          });
+        } else {
+          campaign.status = 'failed';
+          await campaign.save();
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to send mass BCC event: ' + result.error,
+          });
+        }
+      }
 
       // ── Insert Recipients ──
       const recipientDocs = finalRecipients.map((r) => ({

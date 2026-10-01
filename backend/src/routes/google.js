@@ -60,18 +60,18 @@ function buildOAuthClient() {
 }
 
 /** Safe redirect to the React frontend with an error message. */
-function redirectError(res, message) {
-  const base = process.env.FRONTEND_URL || 'http://localhost:5173';
+function redirectError(res, message, frontendUrl) {
+  const base = frontendUrl || process.env.FRONTEND_URL || 'http://localhost:5173';
   return res.redirect(
-    `${base}/settings?tab=google&error=${encodeURIComponent(message)}`
+    `${base}/dashboard/accounts?tab=google&error=${encodeURIComponent(message)}`
   );
 }
 
 /** Safe redirect to the React frontend after a successful connection. */
-function redirectSuccess(res, email) {
-  const base = process.env.FRONTEND_URL || 'http://localhost:5173';
+function redirectSuccess(res, email, frontendUrl) {
+  const base = frontendUrl || process.env.FRONTEND_URL || 'http://localhost:5173';
   return res.redirect(
-    `${base}/settings?tab=google&connected=1&account=${encodeURIComponent(email)}`
+    `${base}/dashboard/accounts?tab=google&connected=1&account=${encodeURIComponent(email)}`
   );
 }
 
@@ -96,9 +96,10 @@ const oauthLimiter = rateLimit({
 router.get('/auth', oauthLimiter, resolveUser, requireUser, async (req, res, next) => {
   try {
     const oAuth2Client = buildOAuthClient();
+    const frontendUrl = req.query.frontendUrl;
 
-    // Generate HMAC-signed state (embeds userId + random nonce + timestamp)
-    const state = generateState(req.userId);
+    // Generate HMAC-signed state (embeds userId + frontendUrl + random nonce + timestamp)
+    const state = generateState(req.userId, frontendUrl);
 
     const authUrl = oAuth2Client.generateAuthUrl({
       access_type: 'offline',        // request a refresh token
@@ -136,7 +137,7 @@ router.get('/callback', async (req, res) => {
 
   // ── 0. User denied access on Google's consent screen ──────
   if (googleError) {
-    return redirectError(res, `Google denied access: ${googleError}`);
+    return redirectError(res, `Google denied access: ${googleError}`, '');
   }
 
   // ── 1. Validate CSRF state ─────────────────────────────────
@@ -145,15 +146,15 @@ router.get('/callback', async (req, res) => {
     statePayload = verifyState(state);
   } catch (err) {
     console.warn('[OAuth] State verification failed:', err.message);
-    return redirectError(res, `Security check failed: ${err.message}`);
+    return redirectError(res, `Security check failed: ${err.message}`, '');
   }
 
-  const { userId } = statePayload;
+  const { userId, frontendUrl } = statePayload;
 
   // Confirm the EventBlast user still exists (could have been deleted mid-flow)
   const user = await User.findById(userId).lean();
   if (!user) {
-    return redirectError(res, 'EventBlast user not found. Please log in again.');
+    return redirectError(res, 'EventBlast user not found. Please log in again.', frontendUrl);
   }
 
   try {
@@ -164,7 +165,7 @@ router.get('/callback', async (req, res) => {
       ({ tokens } = await oAuth2Client.getToken(code));
     } catch (err) {
       console.error('[OAuth] Token exchange failed:', err.message);
-      return redirectError(res, 'Failed to exchange authorization code. Please try again.');
+      return redirectError(res, 'Failed to exchange authorization code. Please try again.', frontendUrl);
     }
 
     // ── 3. Assert refresh token was returned ─────────────────
@@ -172,7 +173,8 @@ router.get('/callback', async (req, res) => {
     if (!tokens.refresh_token) {
       return redirectError(
         res,
-        'Google did not return a refresh token. Please revoke app access in your Google Account settings and try again.'
+        'Google did not return a refresh token. Please revoke app access in your Google Account settings and try again.',
+        frontendUrl
       );
     }
 
@@ -184,7 +186,7 @@ router.get('/callback', async (req, res) => {
 
     // googleUser: { id, email, name, picture, ... }
     if (!googleUser.id || !googleUser.email) {
-      return redirectError(res, 'Could not retrieve account information from Google.');
+      return redirectError(res, 'Could not retrieve account information from Google.', frontendUrl);
     }
 
     // ── 5. Fetch primary calendar metadata ───────────────────
@@ -241,10 +243,10 @@ router.get('/callback', async (req, res) => {
     console.info(
       `[OAuth] Google account connected: ${googleUser.email} → user ${userId}`
     );
-    return redirectSuccess(res, googleUser.email);
+    return redirectSuccess(res, googleUser.email, frontendUrl);
   } catch (err) {
     console.error('[OAuth] Callback error:', err);
-    return redirectError(res, 'An unexpected error occurred. Please try again.');
+    return redirectError(res, 'An unexpected error occurred. Please try again.', frontendUrl);
   }
 });
 

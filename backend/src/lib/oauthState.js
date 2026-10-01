@@ -35,9 +35,10 @@ function getSigningSecret() {
  * @param {string|ObjectId} userId  – MongoDB ObjectId of the EventBlast user
  * @returns {string}  "<payload_b64url>.<hmac_b64url>"
  */
-export function generateState(userId) {
+export function generateState(userId, frontendUrl) {
   const payload = {
     userId: String(userId),
+    frontendUrl: String(frontendUrl || ''),
     nonce: crypto.randomBytes(16).toString('hex'), // 128-bit entropy
     iat: Date.now(),
   };
@@ -107,5 +108,5 @@ export function verifyState(state) {
     throw new Error('State payload is missing required fields.');
   }
 
-  return payload; // { userId, nonce, iat }
+  return payload; // { userId, nonce, iat, frontendUrl }
 }

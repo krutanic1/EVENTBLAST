@@ -67,6 +67,12 @@ const campaignSchema = new mongoose.Schema(
       default: false,
     },
 
+    deliveryMethod: {
+      type: String,
+      enum: ['queue', 'bcc'],
+      default: 'queue',
+    },
+
     // ── Google Calendar account used to send invitations ──
     googleAccountId: {
       type: mongoose.Schema.Types.ObjectId,

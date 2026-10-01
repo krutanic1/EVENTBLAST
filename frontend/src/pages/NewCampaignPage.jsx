@@ -332,6 +332,7 @@ export default function NewCampaignPage() {
     startTime:       '09:00', // Default hidden value
     endTime:         '10:00', // Default hidden value
     timezone:        Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    deliveryMethod:  'queue', // 'queue' or 'bcc'
     googleAccountId: '',
   });
   const [errors, setErrors]       = useState({});
@@ -502,6 +503,7 @@ export default function NewCampaignPage() {
         endTime:         endISO,
         isAllDay:        form.isAllDay,
         timezone:        form.timezone,
+        deliveryMethod:  form.deliveryMethod,
         googleAccountId: form.googleAccountId,
         recipients:      finalRecipients,
       };
@@ -765,6 +767,50 @@ export default function NewCampaignPage() {
               <XCircle size={12} /> {errors.csv}
             </p>
           )}
+
+          {/* Delivery Method Toggle */}
+          <div className="mt-6 pt-5 border-t border-indigo-500/10">
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+              Delivery Method
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, deliveryMethod: 'queue' }))}
+                className={`flex flex-col items-start gap-1 p-4 rounded-xl border transition-all text-left ${
+                  form.deliveryMethod === 'queue'
+                    ? 'bg-indigo-600/15 border-indigo-500/40 shadow-sm shadow-indigo-500/10'
+                    : 'bg-surface-700/50 border-indigo-500/10 hover:border-indigo-500/25'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${form.deliveryMethod === 'queue' ? 'border-indigo-500 bg-indigo-500' : 'border-slate-600'}`}>
+                    {form.deliveryMethod === 'queue' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                  </span>
+                  <span className="font-semibold text-sm text-slate-200">1-on-1 Individual (Recommended)</span>
+                </div>
+                <span className="text-xs text-slate-500 ml-6">Sends separate, private invites. Highly reliable, prevents spam filters, looks personal.</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, deliveryMethod: 'bcc' }))}
+                className={`flex flex-col items-start gap-1 p-4 rounded-xl border transition-all text-left ${
+                  form.deliveryMethod === 'bcc'
+                    ? 'bg-indigo-600/15 border-indigo-500/40 shadow-sm shadow-indigo-500/10'
+                    : 'bg-surface-700/50 border-indigo-500/10 hover:border-indigo-500/25'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${form.deliveryMethod === 'bcc' ? 'border-indigo-500 bg-indigo-500' : 'border-slate-600'}`}>
+                    {form.deliveryMethod === 'bcc' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                  </span>
+                  <span className="font-semibold text-sm text-slate-200">Mass BCC (Instant & Fast)</span>
+                </div>
+                <span className="text-xs text-slate-500 ml-6">Adds everyone to one event. Hides guest list, no DB tracking, high risk for large lists.</span>
+              </button>
+            </div>
+          </div>
         </Section>
 
         {/* ── Submit ── */}

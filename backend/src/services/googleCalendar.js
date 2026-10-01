@@ -81,9 +81,8 @@ export async function createCalendarEvent({ googleAccount, campaign, recipients 
             timeZone: campaign.timezone,
           },
       attendees: attendees,
-      // Default to transparent so the organizer isn't marked as "busy" for thousands of events
-      // if they do 1:1 sends.
       transparency: 'transparent',
+      guestsCanSeeOtherGuests: campaign.guestsCanSeeOtherGuests ?? false,
     },
   };
 

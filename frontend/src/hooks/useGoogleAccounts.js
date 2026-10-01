@@ -40,7 +40,7 @@ export function useGoogleAccounts(userId) {
     if (!userId) {
       throw new Error('No userId — save your User ID in Settings first.');
     }
-    window.location.href = `${api.defaults.baseURL}/google/auth?userId=${encodeURIComponent(userId)}`;
+    window.location.href = `${api.defaults.baseURL}/google/auth?userId=${encodeURIComponent(userId)}&frontendUrl=${encodeURIComponent(window.location.origin)}`;
   }, [userId]);
 
   // ── Disconnect ───────────────────────────────────────────
