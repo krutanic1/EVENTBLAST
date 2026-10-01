@@ -103,7 +103,7 @@ function GoogleAccountsPanel({ userId, onMessage }) {
     // Navigate to backend OAuth initiation — this is a full browser redirect.
     // The backend will redirect to Google, and Google will call back to
     // /api/google/callback, which redirects back here with query params.
-    window.location.href = `/api/google/auth?userId=${encodeURIComponent(userId)}`;
+    window.location.href = `${api.defaults.baseURL}/google/auth?userId=${encodeURIComponent(userId)}`;
   };
 
   const handleDisconnect = async (accountId, email) => {

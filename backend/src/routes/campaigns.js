@@ -118,6 +118,7 @@ router.post(
     body('endTime').isISO8601().withMessage('Valid ISO end time is required'),
     body('timezone').trim().notEmpty().withMessage('Timezone is required'),
     body('isAllDay').optional().isBoolean(),
+    body('guestsCanSeeOtherGuests').optional().isBoolean(),
     body('googleAccountId').isMongoId().withMessage('A valid Google account ID is required'),
     body('recipients').isArray({ min: 1 }).withMessage('At least one recipient is required'),
   ],
@@ -126,7 +127,7 @@ router.post(
     try {
       const {
         title, description, startTime, endTime,
-        timezone, isAllDay, googleAccountId, recipients,
+        timezone, isAllDay, guestsCanSeeOtherGuests, googleAccountId, recipients,
       } = req.body;
 
       // Verify the Google account belongs to this user
@@ -207,11 +208,16 @@ router.post(
       // Auto-link URLs in description
       let formattedDescription = description?.trim() || '';
       if (formattedDescription) {
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        formattedDescription = formattedDescription.replace(urlRegex, function(url) {
-          // If it's already inside an href, skip (basic heuristic)
-          return `<a href="${url}">${url}</a>`;
+        // Match existing <a> tags OR bare URLs
+        const urlRegex = /(<a\s+[^>]*>.*?<\/a>)|(https?:\/\/[^\s<]+)|(www\.[^\s<]+)|([a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/[^\s<]*)/gi;
+        
+        formattedDescription = formattedDescription.replace(urlRegex, function(match, aTag) {
+          if (aTag) return aTag; // Leave existing HTML links alone
+          
+          const href = match.startsWith('http') ? match : `https://${match}`;
+          return `<a href="${href}">${match}</a>`;
         });
+        
         // Replace newlines with <br> for HTML rendering in calendar
         formattedDescription = formattedDescription.replace(/\n/g, '<br>');
       }
@@ -226,6 +232,7 @@ router.post(
         endTime:         new Date(endTime),
         timezone,
         isAllDay:        Boolean(isAllDay),
+        guestsCanSeeOtherGuests: Boolean(guestsCanSeeOtherGuests),
         status:          'draft',
         totalRecipients: finalRecipients.length,
         successful:      0,

@@ -62,6 +62,11 @@ const campaignSchema = new mongoose.Schema(
       default: true,
     },
 
+    guestsCanSeeOtherGuests: {
+      type: Boolean,
+      default: false,
+    },
+
     // ── Google Calendar account used to send invitations ──
     googleAccountId: {
       type: mongoose.Schema.Types.ObjectId,
